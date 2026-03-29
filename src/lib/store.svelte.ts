@@ -8,10 +8,13 @@ function createStore() {
   let entries = $state<PeriodEntry[]>([])
   let cycleLength = $state(28)
   let periodLength = $state(5)
-  let initialized = $state(false)
+  // plain boolean — NOT $state, so mutations inside init() don't
+  // accidentally fire inside $derived computations
+  let initialized = false
 
   function init() {
     if (initialized) return
+    initialized = true
     try {
       const saved = localStorage.getItem(ENTRIES_KEY)
       if (saved) entries = JSON.parse(saved)
@@ -22,7 +25,6 @@ function createStore() {
     } catch (e) {
       console.error('Failed to load from localStorage', e)
     }
-    initialized = true
   }
 
   function saveEntries() {
@@ -34,7 +36,6 @@ function createStore() {
   }
 
   function addEntry(entry: Omit<PeriodEntry, 'id'>) {
-    init()
     const newEntry: PeriodEntry = {
       ...entry,
       id: crypto.randomUUID()
@@ -44,13 +45,11 @@ function createStore() {
   }
 
   function updateEntry(id: string, updates: Partial<Omit<PeriodEntry, 'id'>>) {
-    init()
     entries = entries.map(e => e.id === id ? { ...e, ...updates } : e)
     saveEntries()
   }
 
   function deleteEntry(id: string) {
-    init()
     entries = entries.filter(e => e.id !== id)
     saveEntries()
   }
@@ -70,10 +69,10 @@ function createStore() {
   }
 
   return {
-    get entries() { init(); return entries },
+    // Simple getters — no side effects, safe to call from $derived
+    get entries() { return entries },
     get cycleLength() { return cycleLength },
     get periodLength() { return periodLength },
-    get initialized() { return initialized },
     init,
     addEntry,
     updateEntry,
