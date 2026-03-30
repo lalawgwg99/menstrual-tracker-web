@@ -1,4 +1,4 @@
-import type { PeriodEntry } from './types.js'
+import type { PeriodEntry, DailyLog } from './types.js'
 
 const ENTRIES_KEY = 'cycle-entries'
 const CYCLE_LENGTH_KEY = 'cycle-default-length'
@@ -68,6 +68,24 @@ function createStore() {
     } catch (e) {}
   }
 
+  function upsertDailyLog(entryId: string, log: DailyLog) {
+    entries = entries.map(e => {
+      if (e.id !== entryId) return e
+      const existingLogs = e.logs ?? []
+      const idx = existingLogs.findIndex(l => l.date === log.date)
+      const newLogs = idx >= 0
+        ? existingLogs.map((l, i) => i === idx ? { ...l, ...log } : l)
+        : [...existingLogs, log]
+      return { ...e, logs: newLogs }
+    })
+    saveEntries()
+  }
+
+  function getDailyLog(entryId: string, date: string): DailyLog | undefined {
+    const entry = entries.find(e => e.id === entryId)
+    return entry?.logs?.find(l => l.date === date)
+  }
+
   return {
     // Simple getters — no side effects, safe to call from $derived
     get entries() { return entries },
@@ -78,7 +96,9 @@ function createStore() {
     updateEntry,
     deleteEntry,
     setDefaultCycleLength,
-    setDefaultPeriodLength
+    setDefaultPeriodLength,
+    upsertDailyLog,
+    getDailyLog
   }
 }
 

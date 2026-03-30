@@ -1,5 +1,6 @@
 <script lang="ts">
   import { store } from './lib/store.svelte.js'
+  import { scheduleReminders } from './lib/notifications.js'
   import CalendarView from './components/CalendarView.svelte'
   import LogPanel from './components/LogPanel.svelte'
   import StatsPanel from './components/StatsPanel.svelte'
@@ -9,6 +10,18 @@
 
   $effect(() => {
     store.init()
+    try {
+      const rs = JSON.parse(localStorage.getItem('reminder-settings') ?? '{}')
+      if ((rs.periodReminder || rs.tempReminder) && typeof Notification !== 'undefined') {
+        scheduleReminders(
+          store.entries,
+          { cycleLength: store.cycleLength, periodLength: store.periodLength },
+          rs.periodReminder ?? false,
+          rs.tempReminder ?? false,
+          rs.tempTime ?? '06:30'
+        )
+      }
+    } catch {}
   })
 </script>
 

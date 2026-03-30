@@ -1,10 +1,13 @@
 <script lang="ts">
   import { store } from '../lib/store.svelte.js'
   import { addDays } from '../lib/cycle.js'
+  import type { FlowLevel, MoodTag, SymptomTag, DailyLog } from '../lib/types.js'
+  import ReminderSettings from './ReminderSettings.svelte'
 
   let showForm = $state(false)
   let startDate = $state('')
   let endDate = $state('')
+  let expandedId = $state<string | null>(null)
 
   let defaultEndDate = $derived(
     startDate ? addDays(startDate, store.periodLength - 1) : ''
@@ -27,7 +30,6 @@
   function handleSubmit() {
     if (!startDate || !endDate) return
     if (endDate < startDate) return
-
     store.addEntry({ startDate, endDate })
     startDate = ''
     endDate = ''
@@ -68,6 +70,80 @@
     const end = new Date(entry.endDate + 'T00:00:00')
     return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
   }
+
+  function getDatesInRange(s: string, e: string): string[] {
+    const dates: string[] = []
+    const start = new Date(s + 'T00:00:00')
+    const end = new Date(e + 'T00:00:00')
+    const cur = new Date(start)
+    while (cur <= end) {
+      dates.push(cur.toISOString().split('T')[0])
+      cur.setDate(cur.getDate() + 1)
+    }
+    return dates
+  }
+
+  const flowOptions: { value: FlowLevel; label: string }[] = [
+    { value: 'spotting', label: '點滴💧' },
+    { value: 'light', label: '輕🩸' },
+    { value: 'medium', label: '中🩸🩸' },
+    { value: 'heavy', label: '重🩸🩸🩸' }
+  ]
+
+  const symptomOptions: { value: SymptomTag; label: string }[] = [
+    { value: 'cramps', label: '痛經' },
+    { value: 'headache', label: '頭痛' },
+    { value: 'bloating', label: '腹脹' },
+    { value: 'backpain', label: '腰痛' },
+    { value: 'acne', label: '長痘' },
+    { value: 'breast_tenderness', label: '胸脹' },
+    { value: 'nausea', label: '噁心' }
+  ]
+
+  const moodOptions: { value: MoodTag; emoji: string }[] = [
+    { value: 'happy', emoji: '😊' },
+    { value: 'calm', emoji: '😌' },
+    { value: 'sad', emoji: '😢' },
+    { value: 'irritable', emoji: '😤' },
+    { value: 'anxious', emoji: '😰' },
+    { value: 'tired', emoji: '😴' }
+  ]
+
+  function getLog(entryId: string, date: string): DailyLog {
+    return store.getDailyLog(entryId, date) ?? { date }
+  }
+
+  function setFlow(entryId: string, date: string, flow: FlowLevel) {
+    const log = getLog(entryId, date)
+    const newFlow = log.flow === flow ? undefined : flow
+    store.upsertDailyLog(entryId, { ...log, flow: newFlow })
+  }
+
+  function toggleSymptom(entryId: string, date: string, symptom: SymptomTag) {
+    const log = getLog(entryId, date)
+    const existing = log.symptoms ?? []
+    const newSymptoms = existing.includes(symptom)
+      ? existing.filter(s => s !== symptom)
+      : [...existing, symptom]
+    store.upsertDailyLog(entryId, { ...log, symptoms: newSymptoms })
+  }
+
+  function setMood(entryId: string, date: string, mood: MoodTag) {
+    const log = getLog(entryId, date)
+    const newMood = log.mood === mood ? undefined : mood
+    store.upsertDailyLog(entryId, { ...log, mood: newMood })
+  }
+
+  function setTemperature(entryId: string, date: string, temp: string) {
+    const log = getLog(entryId, date)
+    const val = parseFloat(temp)
+    store.upsertDailyLog(entryId, { ...log, temperature: isNaN(val) ? undefined : val })
+  }
+
+  function setNote(entryId: string, date: string, note: string) {
+    const log = getLog(entryId, date)
+    store.upsertDailyLog(entryId, { ...log, note })
+  }
 </script>
 
 <div class="log-panel">
@@ -104,6 +180,9 @@
       </div>
     {/if}
   </div>
+
+  <!-- Reminder settings -->
+  <ReminderSettings />
 
   <!-- Settings card -->
   <div class="card">
@@ -152,10 +231,95 @@
               <div class="entry-dates">{formatDateDisplay(entry.startDate)} — {formatDateDisplay(entry.endDate)}</div>
               <div class="entry-duration">{getDuration(entry)} 天</div>
             </div>
+            <button
+              class="log-btn"
+              onclick={() => expandedId = expandedId === entry.id ? null : entry.id}
+              title="詳細記錄"
+            >📝</button>
             <button class="delete-btn" onclick={() => handleDelete(entry.id)}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             </button>
           </div>
+
+          {#if expandedId === entry.id}
+            <div class="daily-logs-section">
+              {#each getDatesInRange(entry.startDate, entry.endDate) as date}
+                {@const log = getLog(entry.id, date)}
+                <div class="daily-log-day">
+                  <div class="day-header">{formatDateDisplay(date)}</div>
+
+                  <!-- Flow -->
+                  <div class="log-field">
+                    <span class="log-field-label">流量</span>
+                    <div class="tag-group">
+                      {#each flowOptions as opt}
+                        <button
+                          class="tag-btn flow-btn {log.flow === opt.value ? 'active' : ''}"
+                          onclick={() => setFlow(entry.id, date, opt.value)}
+                        >{opt.label}</button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <!-- Symptoms -->
+                  <div class="log-field">
+                    <span class="log-field-label">症狀</span>
+                    <div class="tag-group">
+                      {#each symptomOptions as opt}
+                        <button
+                          class="tag-btn {(log.symptoms ?? []).includes(opt.value) ? 'active' : ''}"
+                          onclick={() => toggleSymptom(entry.id, date, opt.value)}
+                        >{opt.label}</button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <!-- Mood -->
+                  <div class="log-field">
+                    <span class="log-field-label">心情</span>
+                    <div class="tag-group">
+                      {#each moodOptions as opt}
+                        <button
+                          class="tag-btn mood-btn {log.mood === opt.value ? 'active' : ''}"
+                          onclick={() => setMood(entry.id, date, opt.value)}
+                        >{opt.emoji}</button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <!-- Temperature -->
+                  <div class="log-field">
+                    <span class="log-field-label">體溫</span>
+                    <div class="temp-input-group">
+                      <input
+                        type="number"
+                        class="temp-input"
+                        min="35.0"
+                        max="38.5"
+                        step="0.1"
+                        value={log.temperature ?? ''}
+                        oninput={(e) => setTemperature(entry.id, date, (e.target as HTMLInputElement).value)}
+                        placeholder="36.5"
+                      />
+                      <span class="temp-unit">°C</span>
+                    </div>
+                  </div>
+
+                  <!-- Note -->
+                  <div class="log-field">
+                    <span class="log-field-label">備注</span>
+                    <textarea
+                      class="note-input"
+                      rows="1"
+                      value={log.note ?? ''}
+                      oninput={(e) => setNote(entry.id, date, (e.target as HTMLTextAreaElement).value)}
+                      placeholder="今天的感受..."
+                    ></textarea>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          {/if}
         {/each}
       </div>
     {/if}
@@ -361,6 +525,21 @@
     margin-top: 2px;
   }
 
+  .log-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    transition: background 0.15s;
+    line-height: 1;
+  }
+
+  .log-btn:hover {
+    background: #fce7f0;
+  }
+
   .delete-btn {
     background: none;
     border: none;
@@ -376,5 +555,97 @@
   .delete-btn:hover {
     color: var(--period);
     background: #fde8ee;
+  }
+
+  /* Daily log section */
+  .daily-logs-section {
+    background: #fdf5f8;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: -4px;
+    margin-bottom: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .daily-log-day {
+    background: white;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 1px 4px rgba(244, 63, 94, 0.06);
+  }
+
+  .day-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--period);
+    padding-bottom: 6px;
+    border-bottom: 1px solid #fce7f0;
+  }
+
+  .log-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .log-field-label {
+    font-size: 12px;
+    color: #aaa;
+    font-weight: 500;
+  }
+
+  .tag-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .temp-input-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .temp-input {
+    width: 80px;
+    padding: 5px 8px;
+    border: 1.5px solid #f3e8ee;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #333;
+    outline: none;
+    font-family: inherit;
+  }
+
+  .temp-input:focus {
+    border-color: var(--period);
+  }
+
+  .temp-unit {
+    font-size: 13px;
+    color: #aaa;
+  }
+
+  .note-input {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1.5px solid #f3e8ee;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #333;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+    background: #fdf9fb;
+    box-sizing: border-box;
+  }
+
+  .note-input:focus {
+    border-color: var(--period);
   }
 </style>
