@@ -5,9 +5,10 @@
   import CalendarView from './components/CalendarView.svelte'
   import LogPanel from './components/LogPanel.svelte'
   import StatsPanel from './components/StatsPanel.svelte'
+  import SettingsPanel from './components/SettingsPanel.svelte'
   import NavBar from './components/NavBar.svelte'
 
-  let activeTab = $state<'calendar' | 'log' | 'stats'>('calendar')
+  let activeTab = $state<'calendar' | 'log' | 'stats' | 'settings'>('calendar')
   let lockSupported = $state(isWebAuthnSupported())
   let lockEnabled = $state(lockSupported ? isAppLockEnabled() : false)
   let appLocked = $state(lockSupported ? isAppLockEnabled() : false)
@@ -69,8 +70,10 @@
       <CalendarView onNavigate={(tab) => activeTab = tab} />
     {:else if activeTab === 'log'}
       <LogPanel />
-    {:else}
+    {:else if activeTab === 'stats'}
       <StatsPanel />
+    {:else}
+      <SettingsPanel />
     {/if}
   </main>
   <NavBar {activeTab} onTabChange={(tab) => activeTab = tab} />

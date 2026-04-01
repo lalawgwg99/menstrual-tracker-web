@@ -2,19 +2,12 @@
   import { store } from '../lib/store.svelte.js'
   import { addDays, formatLocalDate } from '../lib/cycle.js'
   import type { FlowLevel, MoodTag, SymptomTag, DailyLog } from '../lib/types.js'
-  import ReminderSettings from './ReminderSettings.svelte'
-  import { enableAppLock, disableAppLock, isWebAuthnSupported, isAppLockEnabled } from '../lib/webauthn.js'
-  import { isSoundEnabled, setSoundEnabled, playTap, playSuccess, playDelete } from '../lib/sound.js'
+  import { playTap, playSuccess, playDelete } from '../lib/sound.js'
 
   let showForm = $state(false)
   let startDate = $state('')
   let endDate = $state('')
   let expandedId = $state<string | null>(null)
-  let appLockSupported = $state(isWebAuthnSupported())
-  let appLockEnabled = $state(appLockSupported ? isAppLockEnabled() : false)
-  let appLockBusy = $state(false)
-  let appLockError = $state('')
-  let soundEnabled = $state(isSoundEnabled())
 
   let defaultEndDate = $derived(
     startDate ? addDays(startDate, store.periodLength - 1) : ''
@@ -24,14 +17,6 @@
     if (startDate && !endDate) {
       endDate = defaultEndDate
     }
-  })
-
-  let editingCycleLength = $state(String(store.cycleLength))
-  let editingPeriodLength = $state(String(store.periodLength))
-
-  $effect(() => {
-    editingCycleLength = String(store.cycleLength)
-    editingPeriodLength = String(store.periodLength)
   })
 
   function handleSubmit() {
@@ -48,22 +33,6 @@
     if (confirm('確定要刪除這筆記錄嗎？')) {
       store.deleteEntry(id)
       playDelete()
-    }
-  }
-
-  function saveCycleLength() {
-    const val = parseInt(editingCycleLength)
-    if (!isNaN(val) && val >= 20 && val <= 45) {
-      store.setDefaultCycleLength(val)
-      playTap()
-    }
-  }
-
-  function savePeriodLength() {
-    const val = parseInt(editingPeriodLength)
-    if (!isNaN(val) && val >= 2 && val <= 10) {
-      store.setDefaultPeriodLength(val)
-      playTap()
     }
   }
 
@@ -166,32 +135,6 @@
     store.upsertDailyLog(entryId, { ...log, note })
   }
 
-  async function handleEnableLock() {
-    if (!appLockSupported || appLockBusy) return
-    appLockBusy = true
-    appLockError = ''
-    try {
-      const ok = await enableAppLock()
-      appLockEnabled = ok
-      if (!ok) appLockError = '啟用失敗，請重試'
-    } catch {
-      appLockError = '啟用失敗，請重試'
-    } finally {
-      appLockBusy = false
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('app-lock-changed'))
-      }
-    }
-  }
-
-  function handleDisableLock() {
-    disableAppLock()
-    appLockEnabled = false
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('app-lock-changed'))
-    }
-  }
-
   function setMucus(entryId: string, date: string, value: DailyLog['cervicalMucus']) {
     const log = getLog(entryId, date)
     const nextVal = log.cervicalMucus === value ? undefined : value
@@ -222,12 +165,6 @@
   function setMedication(entryId: string, date: string, medication: string) {
     const log = getLog(entryId, date)
     store.upsertDailyLog(entryId, { ...log, medication })
-  }
-
-  function toggleSound() {
-    soundEnabled = !soundEnabled
-    setSoundEnabled(soundEnabled)
-    if (soundEnabled) playTap()
   }
 </script>
 
@@ -270,69 +207,6 @@
 
   <div class="card quick-guide">
     <p class="simple-hint">操作建議：先記錄開始/結束日期，再補上每天流量與症狀，分析會更準確。</p>
-  </div>
-
-  <!-- Reminder settings -->
-  <ReminderSettings />
-
-  <!-- App lock -->
-  <div class="card">
-    <h3 class="section-title">隱私保護</h3>
-    <div class="setting-item">
-      <span class="setting-label">Face ID / Touch ID 解鎖</span>
-      {#if !appLockSupported}
-        <span class="setting-hint">此裝置不支援</span>
-      {:else if appLockEnabled}
-        <button class="lock-btn" onclick={handleDisableLock}>關閉</button>
-      {:else}
-        <button class="lock-btn primary" onclick={handleEnableLock} disabled={appLockBusy}>
-          {appLockBusy ? '啟用中…' : '啟用'}
-        </button>
-      {/if}
-    </div>
-    {#if appLockError}
-      <div class="lock-error">{appLockError}</div>
-    {/if}
-    <div class="lock-note">僅在本機加密保存，不會上傳雲端。</div>
-  </div>
-
-  <!-- Settings card -->
-  <div class="card">
-    <h3 class="section-title">週期設定</h3>
-    <div class="setting-item">
-      <span class="setting-label">預設週期長度</span>
-      <div class="setting-input-group">
-        <input
-          type="number"
-          class="setting-input"
-          bind:value={editingCycleLength}
-          min="20"
-          max="45"
-          onblur={saveCycleLength}
-        />
-        <span class="setting-unit">天</span>
-      </div>
-    </div>
-    <div class="setting-item">
-      <span class="setting-label">預設經期天數</span>
-      <div class="setting-input-group">
-        <input
-          type="number"
-          class="setting-input"
-          bind:value={editingPeriodLength}
-          min="2"
-          max="10"
-          onblur={savePeriodLength}
-        />
-        <span class="setting-unit">天</span>
-      </div>
-    </div>
-    <div class="setting-item">
-      <span class="setting-label">操作音效</span>
-      <button class="lock-btn {soundEnabled ? 'primary' : ''}" onclick={toggleSound}>
-        {soundEnabled ? '開啟' : '關閉'}
-      </button>
-    </div>
   </div>
 
   <!-- Records list -->
@@ -652,88 +526,6 @@
     color: var(--text-muted);
     margin-bottom: 8px;
     padding-left: 8px;
-  }
-
-  .setting-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 8px;
-    border-bottom: 0.5px solid var(--border);
-  }
-
-  .setting-item:last-child {
-    border-bottom: none;
-  }
-
-  .setting-label {
-    font-size: 16px;
-    color: var(--text);
-  }
-
-  .setting-input-group {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .setting-input {
-    width: 60px;
-    padding: 6px 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 16px;
-    text-align: center;
-    color: var(--text);
-    background: var(--bg);
-    outline: none;
-    -webkit-appearance: none;
-  }
-
-  .setting-input:focus {
-    border-color: var(--period);
-  }
-
-  .setting-unit {
-    font-size: 14px;
-    color: var(--text-muted);
-  }
-
-  .setting-hint {
-    font-size: 12px;
-    color: var(--text-muted);
-  }
-
-  .lock-btn {
-    border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--text);
-    font-size: 13px;
-    font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 10px;
-  }
-
-  .lock-btn.primary {
-    background: var(--text);
-    color: var(--bg);
-    border-color: var(--text);
-  }
-
-  .lock-btn:disabled {
-    opacity: 0.6;
-  }
-
-  .lock-error {
-    margin-top: 6px;
-    font-size: 12px;
-    color: #b91c1c;
-  }
-
-  .lock-note {
-    margin-top: 6px;
-    font-size: 12px;
-    color: var(--text-muted);
   }
 
   .empty-text {
