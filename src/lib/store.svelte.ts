@@ -54,6 +54,11 @@ function createStore() {
     saveEntries()
   }
 
+  function replaceEntries(nextEntries: PeriodEntry[]) {
+    entries = [...nextEntries].sort((a, b) => a.startDate.localeCompare(b.startDate))
+    saveEntries()
+  }
+
   function setDefaultCycleLength(len: number) {
     cycleLength = len
     try {
@@ -95,6 +100,7 @@ function createStore() {
     addEntry,
     updateEntry,
     deleteEntry,
+    replaceEntries,
     setDefaultCycleLength,
     setDefaultPeriodLength,
     upsertDailyLog,

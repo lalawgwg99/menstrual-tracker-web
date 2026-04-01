@@ -1,6 +1,7 @@
 <script lang="ts">
   import ReminderSettings from './ReminderSettings.svelte'
   import { store } from '../lib/store.svelte.js'
+  import { formatLocalDate } from '../lib/cycle.js'
   import { enableAppLock, disableAppLock, isAppLockEnabled, isWebAuthnSupported } from '../lib/webauthn.js'
   import { isSoundEnabled, setSoundEnabled, playTap } from '../lib/sound.js'
 
@@ -8,6 +9,7 @@
   let lockEnabled = $state(lockSupported ? isAppLockEnabled() : false)
   let appLockBusy = $state(false)
   let appLockError = $state('')
+  let backupError = $state('')
   let soundEnabled = $state(isSoundEnabled())
 
   let editingCycleLength = $state(String(store.cycleLength))
@@ -54,6 +56,86 @@
     soundEnabled = !soundEnabled
     setSoundEnabled(soundEnabled)
     playTap()
+  }
+
+  function exportBackup() {
+    const backup = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      app: {
+        entries: store.entries,
+        cycleLength: store.cycleLength,
+        periodLength: store.periodLength,
+        reminderSettings: JSON.parse(localStorage.getItem('reminder-settings') ?? '{}'),
+        soundEnabled: localStorage.getItem('ui-sound-enabled'),
+        appLockEnabled: localStorage.getItem('app-lock-enabled')
+      }
+    }
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `cycle-backup-${formatLocalDate(new Date())}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function importBackup(event: Event) {
+    const input = event.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file) return
+    backupError = ''
+
+    const raw = await file.text()
+    let parsed: any
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      backupError = '備份檔格式不正確'
+      return
+    }
+
+    const data = parsed?.app
+    if (!data || !Array.isArray(data.entries)) {
+      backupError = '找不到可匯入的資料'
+      return
+    }
+
+    const ok = confirm('匯入後會覆蓋目前本機資料，確定要繼續嗎？')
+    if (!ok) return
+
+    store.replaceEntries(data.entries)
+
+    if (typeof data.cycleLength === 'number') {
+      store.setDefaultCycleLength(data.cycleLength)
+      editingCycleLength = String(data.cycleLength)
+    }
+    if (typeof data.periodLength === 'number') {
+      store.setDefaultPeriodLength(data.periodLength)
+      editingPeriodLength = String(data.periodLength)
+    }
+
+    if (data.reminderSettings) {
+      localStorage.setItem('reminder-settings', JSON.stringify(data.reminderSettings))
+    }
+    if (typeof data.soundEnabled === 'string') {
+      localStorage.setItem('ui-sound-enabled', data.soundEnabled)
+      soundEnabled = data.soundEnabled === 'true'
+    }
+
+    // App Lock credentials are device-specific, so do not restore them from backup.
+    disableAppLock()
+    lockEnabled = false
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('app-lock-changed'))
+      window.dispatchEvent(new CustomEvent('app-backup-restored'))
+    }
+
+    alert('備份已匯入。App 會重新整理以套用設定。')
+    window.location.reload()
   }
 </script>
 
@@ -109,6 +191,21 @@
         {soundEnabled ? '開啟' : '關閉'}
       </button>
     </div>
+  </div>
+
+  <div class="card">
+    <h3 class="section-title">資料備份</h3>
+    <p class="setting-note">可匯出完整本機資料，日後再匯回。App Lock 的憑證屬於裝置專屬，不會一起備份。</p>
+    <div class="backup-actions">
+      <button class="setting-btn primary" onclick={exportBackup}>匯出備份</button>
+      <label class="setting-btn file-btn">
+        匯入備份
+        <input type="file" accept="application/json" onchange={importBackup} />
+      </label>
+    </div>
+    {#if backupError}
+      <div class="setting-note error">{backupError}</div>
+    {/if}
   </div>
 </div>
 
@@ -224,5 +321,25 @@
 
   .setting-note.error {
     color: #b91c1c;
+  }
+
+  .backup-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .file-btn {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .file-btn input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
   }
 </style>

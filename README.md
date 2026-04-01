@@ -1,47 +1,94 @@
-# Svelte + TS + Vite
+# 週期日記
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+一個以 Svelte + TypeScript + Vite 製作的月經週期追蹤 Web App。  
+目標是做成溫暖、簡潔、像原生 App 的網頁版體驗，並支援 PWA 安裝、離線使用、通知提醒與本機隱私保護。
 
-## Recommended IDE Setup
+## 主要特色
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+- 月曆週期視圖，顯示經期、排卵期、易孕期與預測區間
+- 今日狀態動態首頁，依週期階段調整重點資訊
+- 經期記錄與每日細項紀錄
+- 體溫、症狀、心情、排卵試紙、宮頸黏液、性行為、體重、用藥與備註
+- 年份 / 月份篩選視角，方便檢視大量資料
+- 體溫曲線與多數據疊圖
+- 統計摘要、趨勢洞察與醫師看診報表匯出
+- PWA 安裝與離線快取
+- 提醒通知、操作音效與 Face ID / Touch ID App Lock
+- 資料備份與還原，方便換機或保留本機紀錄
 
-## Need an official Svelte framework?
+## 頁面分工
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+- `月曆`：看目前週期、預測區間與快速記錄
+- `記錄`：新增經期、補每日資料、查看每次紀錄
+- `統計`：看趨勢、篩選年份月份、匯出看診報表
+- `設定`：管理提醒、音效、隱私與週期預設
 
-## Technical considerations
+## 開發環境
 
-**Why use this over SvelteKit?**
+### 安裝
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
-
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
-
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
-
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
-
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `allowJs` in the TS template?**
-
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```bash
+npm install
 ```
+
+### 啟動
+
+```bash
+npm run dev
+```
+
+### 打包
+
+```bash
+npm run build
+```
+
+### 預覽打包結果
+
+```bash
+npm run preview
+```
+
+## 本機資料
+
+這個專案目前以瀏覽器本機儲存為主：
+
+- 經期與每日紀錄存放在 `localStorage`
+- 提醒設定、音效、App Lock 也以本機儲存
+- 可從設定頁匯出 / 匯入完整備份
+- 離線時仍可瀏覽已快取內容
+
+## 注意事項
+
+- 日期計算以本地時區處理，避免跨日偏差
+- 預測與安全期只供參考，不能當成避孕保證
+- WebAuthn 解鎖需要 HTTPS 或 `localhost`
+
+## 技術棧
+
+- Svelte 5
+- TypeScript
+- Vite
+- Web Notifications
+- Service Worker / PWA
+- WebAuthn
+
+## 專案結構
+
+```text
+src/
+  components/   UI 與頁面元件
+  lib/          週期計算、通知、音效、儲存與驗證
+  app.css       全域樣式
+public/         manifest 與 service worker
+```
+
+## 部署
+
+這個專案適合部署到 Cloudflare Pages 或其他靜態網站平台。  
+如果要在手機上體驗完整 PWA 功能，請確保站點使用 HTTPS。
+
+## 備註
+
+如果你正在閱讀這份 README，代表這個專案已經不是模板，而是一個正在持續打磨的產品。  
+目標是讓它在使用感、視覺一致性與資料信任感上，都比一般月經追蹤 App 更好。
