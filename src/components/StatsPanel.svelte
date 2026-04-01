@@ -422,32 +422,19 @@
     </div>
   </div>
 
-  {#if insights.length > 0}
-    <div class="card highlight-card">
-      <h3 class="section-title">重點洞察</h3>
-      <div class="insight-list">
-        {#each insights as item}
-          <div class="insight-item">{item}</div>
-        {/each}
-      </div>
-    </div>
-  {/if}
-
   <!-- Record count -->
   <div class="card count-card">
     <div class="count-row">
       <span class="count-label">總記錄筆數</span>
       <span class="count-value num-rounded">{stats.count} 筆</span>
     </div>
-  </div>
-
-  <div class="card report-card">
-    <div class="report-row">
-      <div>
-        <div class="report-title">醫師看診報表</div>
-        <div class="report-sub">匯出近 6 個月的極簡 PDF</div>
-      </div>
-      <button class="report-btn" onclick={exportDoctorReport}>匯出</button>
+    <div class="count-actions">
+      <button class="report-btn" onclick={exportDoctorReport}>匯出看診報表</button>
+      {#if insights.length > 0}
+        <p class="count-insight">{insights[0]}</p>
+      {:else}
+        <p class="count-insight">記錄越完整，分析會越準。</p>
+      {/if}
     </div>
   </div>
 
@@ -710,33 +697,8 @@
     margin-top: 8px;
   }
 
-  .highlight-card {
-    padding: 16px;
-  }
-
-  .insight-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .insight-item {
-    font-size: 15px;
-    line-height: 1.5;
-    color: var(--text);
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(0, 0, 0, 0.03);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .insight-item {
-      background: rgba(255, 255, 255, 0.06);
-    }
-  }
-
   .count-card {
-    padding: 14px 16px;
+    padding: 14px 16px 16px;
   }
 
   .count-row {
@@ -756,34 +718,11 @@
     color: var(--period);
   }
 
-  .report-card {
-    padding: 14px 16px;
-  }
-
-  .report-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .report-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .report-sub {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-top: 4px;
-  }
-
   .report-btn {
     border: none;
     padding: 8px 14px;
     border-radius: 10px;
-    background: var(--text);
+    background: var(--accent);
     color: var(--bg);
     font-size: 13px;
     font-weight: 600;
@@ -791,6 +730,19 @@
 
   .report-btn:active {
     opacity: 0.7;
+  }
+
+  .count-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .count-insight {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-muted);
   }
 
   .section-title {

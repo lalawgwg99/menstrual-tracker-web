@@ -70,6 +70,33 @@
     { value: 'heavy', label: '重' }
   ]
 
+  const cycleTerms = [
+    {
+      term: '經期',
+      when: '週期第 1-5 天左右',
+      meaning: '子宮內膜剝落出血，可能出現腹悶、疲倦。',
+      care: '補水、保暖、避免過度疲勞。'
+    },
+    {
+      term: '濾泡期',
+      when: '經期後到排卵前',
+      meaning: '卵泡逐漸成熟，體力與情緒通常較穩定。',
+      care: '適合安排運動與高專注工作。'
+    },
+    {
+      term: '排卵期',
+      when: '排卵日前後約 6 天',
+      meaning: '受孕機率相對較高，分泌物可能增加。',
+      care: '有備孕或避孕需求時，這段期間要特別留意。'
+    },
+    {
+      term: '黃體期',
+      when: '排卵後到下次經期前',
+      meaning: '可能出現 PMS，如乳房脹痛、情緒波動、食慾改變。',
+      care: '規律睡眠、減少刺激性飲食，有助降低不適。'
+    }
+  ]
+
   function getTodayFlow(): FlowLevel | undefined {
     if (!activeEntry) return undefined
     return store.getDailyLog(activeEntry.id, todayStr)?.flow
@@ -118,19 +145,12 @@
       </div>
     </div>
 
-    <div class="insight-box">
-      <div class="insight-icon">✨</div>
-      <p class="insight-text">{phase.insight}</p>
-    </div>
-
     <div class="context-card">
+      <div class="context-title" style="color: {phase.colorVar}">{phase.name}</div>
+      <div class="context-sub">{phase.insight}</div>
       {#if activeEntry}
-        <div class="context-title">今天是經期第 {getDaysBetween(activeEntry.startDate, todayStr) + 1} 天</div>
-        {#if remainingPeriodDays !== null}
-          <div class="context-sub">預計還剩 {remainingPeriodDays} 天</div>
-        {/if}
+        <div class="context-mini num-rounded">今天第 {getDaysBetween(activeEntry.startDate, todayStr) + 1} 天{#if remainingPeriodDays !== null} · 剩 {remainingPeriodDays} 天{/if}</div>
         <div class="flow-quick">
-          <div class="flow-label">快速記錄經血量</div>
           <div class="flow-buttons">
             {#each flowOptions as opt}
               <button
@@ -141,21 +161,18 @@
           </div>
         </div>
       {:else if phase.name === '黃體期'}
-        <div class="context-title">經前期小提示</div>
-        <div class="context-sub">如果有情緒或身體不適，記錄下來會更容易看出規律。</div>
-        <button class="context-action" onclick={goToLog}>前往記錄</button>
+        <div class="context-mini">有不舒服時，記錄一下會更容易看懂規律。</div>
+        <button class="context-action" onclick={goToLog}>去記錄</button>
       {:else if phase.name === '濾泡期'}
-        <div class="context-title">留白日常</div>
-        <div class="context-sub">
+        <div class="context-mini">
           {#if predictions}
-            距離下次經期還有 {getDaysBetween(todayStr, predictions.nextPeriod)} 天
+            距離下次經期還有 {getDaysBetween(todayStr, predictions.nextPeriod)} 天。
           {:else}
             完成第一次記錄後會出現預測
           {/if}
         </div>
       {:else}
-        <div class="context-title">保持節奏</div>
-        <div class="context-sub">用最少的記錄，掌握身體的變化。</div>
+        <div class="context-mini">先記錄今天，其他觀察之後再補也可以。</div>
       {/if}
     </div>
   </div>
@@ -236,6 +253,28 @@
     </div>
   {/if}
 
+  <div class="card education-card">
+    <details>
+      <summary class="education-summary">
+        <span class="education-title">週期名詞說明</span>
+        <span class="education-sub">點一下看懂經期、濾泡期、排卵期、黃體期</span>
+      </summary>
+      <div class="education-list">
+        {#each cycleTerms as item}
+          <div class="term-item">
+            <div class="term-summary">
+              <span class="term-name">{item.term}</span>
+              <span class="term-when">{item.when}</span>
+            </div>
+            <p class="term-desc"><strong>意思：</strong>{item.meaning}</p>
+            <p class="term-desc"><strong>建議：</strong>{item.care}</p>
+          </div>
+        {/each}
+      </div>
+      <p class="education-note">安全期與預測只供參考，不能當成避孕保證。</p>
+    </details>
+  </div>
+
   {#if !predictions}
     <div class="card">
       <p class="no-data">記錄第一次經期後，即可解鎖週期預測與分析</p>
@@ -248,7 +287,7 @@
     padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
     padding-top: 10px;
   }
 
@@ -257,7 +296,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 24px;
+    gap: 16px;
     margin-bottom: 8px;
   }
 
@@ -312,62 +351,39 @@
     color: var(--text-muted);
   }
 
-  .insight-box {
-    background: var(--card-bg);
-    border-radius: 16px;
-    padding: 16px;
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    box-shadow: var(--shadow);
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .insight-icon {
-    font-size: 20px;
-  }
-
-  .insight-text {
-    flex: 1;
-    font-size: 15px;
-    color: var(--text);
-    line-height: 1.5;
-    font-weight: 500;
-  }
-
   .context-card {
     width: 100%;
     background: var(--card-bg);
-    border-radius: 18px;
-    padding: 16px;
+    border-radius: 16px;
+    padding: 14px;
     box-shadow: var(--shadow);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .context-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .context-sub {
-    font-size: 13px;
-    color: var(--text-muted);
-    line-height: 1.45;
-  }
-
-  .flow-quick {
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
 
-  .flow-label {
+  .context-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .context-sub {
     font-size: 12px;
     color: var(--text-muted);
+    line-height: 1.45;
+  }
+
+  .context-mini {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .flow-quick {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
 
   .flow-buttons {
@@ -380,8 +396,8 @@
     border: 1px solid var(--border);
     background: var(--bg);
     border-radius: 10px;
-    padding: 10px 0;
-    font-size: 13px;
+    padding: 9px 0;
+    font-size: 12px;
     color: var(--text);
     transition: transform 0.12s, opacity 0.12s, background 0.12s;
   }
@@ -399,7 +415,7 @@
 
   .context-action {
     align-self: flex-start;
-    padding: 8px 12px;
+    padding: 7px 12px;
     border-radius: 10px;
     border: none;
     background: var(--text);
@@ -482,6 +498,79 @@
   .confidence-note {
     font-size: 12px;
     color: var(--text-muted);
+  }
+
+  .education-card {
+    padding: 12px 14px;
+  }
+
+  .education-card details {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .education-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .education-title {
+    font-size: 15px;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .education-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .education-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .term-item {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    background: var(--bg);
+  }
+
+  .term-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: baseline;
+  }
+
+  .term-name {
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .term-when {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .term-desc {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.55;
+    margin-top: 8px;
+  }
+
+  .education-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.5;
   }
 
   .month-nav {

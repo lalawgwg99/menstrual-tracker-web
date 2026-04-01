@@ -338,25 +338,35 @@
   <!-- Records list -->
   <div class="card">
     <h3 class="section-title">經期記錄（共 {store.entries.length} 筆）</h3>
+    <p class="simple-hint list-hint">點右側筆記按鈕可展開每日詳細紀錄。</p>
     {#if sortedEntries.length === 0}
       <p class="empty-text">還沒有記錄，點上方按鈕新增第一筆！</p>
     {:else}
       <div class="entries-list">
         {#each sortedEntries as entry (entry.id)}
           <div class="entry-item">
-            <div class="entry-icon">🩸</div>
+            <div class="entry-icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2C9 6 5 10 5 14.2A7 7 0 0 0 19 14.2C19 10 15 6 12 2z"></path>
+              </svg>
+            </div>
             <div class="entry-info">
               <div class="entry-dates num-rounded">{formatDateDisplay(entry.startDate)} — {formatDateDisplay(entry.endDate)}</div>
               <div class="entry-duration num-rounded">{getDuration(entry)} 天</div>
             </div>
-            <button
-              class="log-btn"
-              onclick={() => expandedId = expandedId === entry.id ? null : entry.id}
-              title="詳細記錄"
-            >📝</button>
-            <button class="delete-btn" aria-label="刪除紀錄" onclick={() => handleDelete(entry.id)}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-            </button>
+            <div class="entry-actions">
+              <button
+                class="entry-action entry-edit"
+                aria-label={expandedId === entry.id ? '收合詳細記錄' : '展開詳細記錄'}
+                title={expandedId === entry.id ? '收合詳細記錄' : '展開詳細記錄'}
+                onclick={() => { playTap(); expandedId = expandedId === entry.id ? null : entry.id }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+              </button>
+              <button class="entry-action entry-delete" aria-label="刪除紀錄" title="刪除紀錄" onclick={() => handleDelete(entry.id)}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+              </button>
+            </div>
           </div>
 
           {#if expandedId === entry.id}
@@ -733,6 +743,10 @@
     padding: 20px 0;
   }
 
+  .list-hint {
+    margin: 4px 8px 10px;
+  }
+
   .entries-list {
     display: flex;
     flex-direction: column;
@@ -745,7 +759,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 12px 14px;
     border-bottom: 0.5px solid var(--border);
   }
   .entry-item:last-child {
@@ -753,7 +767,14 @@
   }
 
   .entry-icon {
-    font-size: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-soft);
+    color: var(--period);
+    display: grid;
+    place-items: center;
     flex-shrink: 0;
   }
 
@@ -773,24 +794,41 @@
     margin-top: 2px;
   }
 
-  .log-btn, .delete-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 8px;
+  .entry-actions {
     display: flex;
     align-items: center;
+    gap: 6px;
+  }
+
+  .entry-action {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    cursor: pointer;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--text-muted);
-    transition: opacity 0.15s;
+    transition: transform 0.12s, opacity 0.12s, background-color 0.12s, border-color 0.12s;
     -webkit-tap-highlight-color: transparent;
   }
 
-  .log-btn:active, .delete-btn:active {
-    opacity: 0.5;
+  .entry-action:hover {
+    background: var(--card-bg);
+  }
+
+  .entry-action:active {
+    opacity: 0.75;
+    transform: scale(0.96);
+  }
+
+  .entry-edit {
+    color: var(--accent);
   }
   
-  .delete-btn {
+  .entry-delete {
     color: var(--period);
   }
 
