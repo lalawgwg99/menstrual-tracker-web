@@ -1,7 +1,8 @@
 <script lang="ts">
   import { store } from '../lib/store.svelte.js'
-  import { getCycleStats, getRecentCycleLengths, getDaysBetween } from '../lib/cycle.js'
+  import { formatLocalDate, getCycleStats, getRecentCycleLengths, getDaysBetween } from '../lib/cycle.js'
   import type { SymptomTag, PeriodEntry } from '../lib/types.js'
+  import { playSuccess, playTap } from '../lib/sound.js'
 
   const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
   let selectedYear = $state(new Date().getFullYear())
@@ -209,6 +210,7 @@
   }
 
   function exportDoctorReport() {
+    playSuccess()
     const entries = getEntriesWithinMonths(6)
     const statsLocal = getCycleStats(entries)
     const topSymptoms = getTopSymptomsInEntries(entries)
@@ -221,7 +223,7 @@
       </tr>`
     }).join('')
 
-    const todayStr = formatDate(new Date().toISOString().split('T')[0])
+    const todayStr = formatDate(formatLocalDate(new Date()))
     const symptomLine = topSymptoms.length
       ? topSymptoms.map((s) => `${s.label} (${s.count})`).join('、')
       : '無'
@@ -330,7 +332,7 @@
           <button
             class="year-btn num-rounded"
             class:active={selectedYear === y}
-            onclick={() => selectYear(y)}
+            onclick={() => { playTap(); selectYear(y) }}
           >{y}</button>
         {/each}
       </div>
@@ -340,7 +342,7 @@
         <button
           class="month-cell"
           class:active={selectedMonth === i}
-          onclick={() => selectMonth(i)}
+          onclick={() => { playTap(); selectMonth(i) }}
         >
           <span class="month-name">{m}</span>
           <span class="month-count num-rounded">{monthSummary[i]} 筆</span>
@@ -356,6 +358,7 @@
         <span> / 全年</span>
       {/if}
     </div>
+    <p class="simple-hint">點月份可快速縮小資料範圍，再往下看該期間的體溫與週期趨勢。</p>
   </div>
 
   {#if tempPoints.length > 0}

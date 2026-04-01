@@ -2,6 +2,7 @@
   import { store } from '../lib/store.svelte.js'
   import { getDayStatus, getPredictions, getDaysBetween, getCurrentCycleDay, today, addDays, getDetailedPhase, getCycleConfidence } from '../lib/cycle.js'
   import type { FlowLevel } from '../lib/types.js'
+  import { playTap, playSuccess } from '../lib/sound.js'
 
   let { onNavigate } = $props<{
     onNavigate?: (tab: 'calendar' | 'log' | 'stats') => void
@@ -79,6 +80,8 @@
     const existing = store.getDailyLog(activeEntry.id, todayStr) ?? { date: todayStr }
     const nextFlow = existing.flow === flow ? undefined : flow
     store.upsertDailyLog(activeEntry.id, { ...existing, flow: nextFlow })
+    if (nextFlow) playSuccess()
+    else playTap()
   }
 
   function goToLog() {
@@ -86,11 +89,13 @@
   }
 
   function prevMonth() {
+    playTap()
     if (currentMonth === 0) { currentMonth = 11; currentYear-- }
     else { currentMonth-- }
   }
 
   function nextMonth() {
+    playTap()
     if (currentMonth === 11) { currentMonth = 0; currentYear++ }
     else { currentMonth++ }
   }

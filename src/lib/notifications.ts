@@ -1,5 +1,5 @@
 import type { PeriodEntry } from './types.js'
-import { getPredictions } from './cycle.js'
+import { formatLocalDate, getPredictions } from './cycle.js'
 
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!('Notification' in window)) return false
@@ -24,7 +24,7 @@ export function scheduleReminders(
 
   function check() {
     const now = new Date()
-    const todayStr = now.toISOString().split('T')[0]
+    const todayStr = formatLocalDate(now)
     const hh = String(now.getHours()).padStart(2, '0')
     const mm = String(now.getMinutes()).padStart(2, '0')
     const currentTime = `${hh}:${mm}`

@@ -1,5 +1,12 @@
 import type { PeriodEntry } from './types.js'
 
+export function formatLocalDate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 export function getDaysBetween(a: string, b: string): number {
   const dateA = new Date(a + 'T00:00:00')
   const dateB = new Date(b + 'T00:00:00')
@@ -9,11 +16,11 @@ export function getDaysBetween(a: string, b: string): number {
 export function addDays(date: string, n: number): string {
   const d = new Date(date + 'T00:00:00')
   d.setDate(d.getDate() + n)
-  return d.toISOString().split('T')[0]
+  return formatLocalDate(d)
 }
 
 export function today(): string {
-  return new Date().toISOString().split('T')[0]
+  return formatLocalDate(new Date())
 }
 
 interface Defaults {

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { playTap } from '../lib/sound.js'
+
   let { activeTab, onTabChange }: {
     activeTab: 'calendar' | 'log' | 'stats'
     onTabChange: (tab: 'calendar' | 'log' | 'stats') => void
@@ -28,7 +30,7 @@
     <button
       class="tab-btn"
       class:active={activeTab === tab.id}
-      onclick={() => onTabChange(tab.id)}
+      onclick={() => { playTap(); onTabChange(tab.id) }}
     >
       {@html tab.icon}
       <span>{tab.label}</span>

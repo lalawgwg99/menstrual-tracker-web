@@ -1,9 +1,10 @@
 <script lang="ts">
   import { store } from '../lib/store.svelte.js'
-  import { addDays } from '../lib/cycle.js'
+  import { addDays, formatLocalDate } from '../lib/cycle.js'
   import type { FlowLevel, MoodTag, SymptomTag, DailyLog } from '../lib/types.js'
   import ReminderSettings from './ReminderSettings.svelte'
   import { enableAppLock, disableAppLock, isWebAuthnSupported, isAppLockEnabled } from '../lib/webauthn.js'
+  import { isSoundEnabled, setSoundEnabled, playTap, playSuccess, playDelete } from '../lib/sound.js'
 
   let showForm = $state(false)
   let startDate = $state('')
@@ -13,6 +14,7 @@
   let appLockEnabled = $state(appLockSupported ? isAppLockEnabled() : false)
   let appLockBusy = $state(false)
   let appLockError = $state('')
+  let soundEnabled = $state(isSoundEnabled())
 
   let defaultEndDate = $derived(
     startDate ? addDays(startDate, store.periodLength - 1) : ''
@@ -36,6 +38,7 @@
     if (!startDate || !endDate) return
     if (endDate < startDate) return
     store.addEntry({ startDate, endDate })
+    playSuccess()
     startDate = ''
     endDate = ''
     showForm = false
@@ -44,6 +47,7 @@
   function handleDelete(id: string) {
     if (confirm('確定要刪除這筆記錄嗎？')) {
       store.deleteEntry(id)
+      playDelete()
     }
   }
 
@@ -51,6 +55,7 @@
     const val = parseInt(editingCycleLength)
     if (!isNaN(val) && val >= 20 && val <= 45) {
       store.setDefaultCycleLength(val)
+      playTap()
     }
   }
 
@@ -58,6 +63,7 @@
     const val = parseInt(editingPeriodLength)
     if (!isNaN(val) && val >= 2 && val <= 10) {
       store.setDefaultPeriodLength(val)
+      playTap()
     }
   }
 
@@ -82,7 +88,7 @@
     const end = new Date(e + 'T00:00:00')
     const cur = new Date(start)
     while (cur <= end) {
-      dates.push(cur.toISOString().split('T')[0])
+      dates.push(formatLocalDate(cur))
       cur.setDate(cur.getDate() + 1)
     }
     return dates
@@ -129,6 +135,7 @@
     const log = getLog(entryId, date)
     const newFlow = log.flow === flow ? undefined : flow
     store.upsertDailyLog(entryId, { ...log, flow: newFlow })
+    if (newFlow) playTap()
   }
 
   function toggleSymptom(entryId: string, date: string, symptom: SymptomTag) {
@@ -138,12 +145,14 @@
       ? existing.filter(s => s !== symptom)
       : [...existing, symptom]
     store.upsertDailyLog(entryId, { ...log, symptoms: newSymptoms })
+    playTap()
   }
 
   function setMood(entryId: string, date: string, mood: MoodTag) {
     const log = getLog(entryId, date)
     const newMood = log.mood === mood ? undefined : mood
     store.upsertDailyLog(entryId, { ...log, mood: newMood })
+    if (newMood) playTap()
   }
 
   function setTemperature(entryId: string, date: string, temp: string) {
@@ -187,18 +196,21 @@
     const log = getLog(entryId, date)
     const nextVal = log.cervicalMucus === value ? undefined : value
     store.upsertDailyLog(entryId, { ...log, cervicalMucus: nextVal })
+    if (nextVal) playTap()
   }
 
   function setOvulationTest(entryId: string, date: string, value: DailyLog['ovulationTest']) {
     const log = getLog(entryId, date)
     const nextVal = log.ovulationTest === value ? undefined : value
     store.upsertDailyLog(entryId, { ...log, ovulationTest: nextVal })
+    if (nextVal) playTap()
   }
 
   function setSex(entryId: string, date: string, value: boolean) {
     const log = getLog(entryId, date)
     const nextVal = log.sex === value ? undefined : value
     store.upsertDailyLog(entryId, { ...log, sex: nextVal })
+    if (nextVal !== undefined) playTap()
   }
 
   function setWeight(entryId: string, date: string, weight: string) {
@@ -210,6 +222,12 @@
   function setMedication(entryId: string, date: string, medication: string) {
     const log = getLog(entryId, date)
     store.upsertDailyLog(entryId, { ...log, medication })
+  }
+
+  function toggleSound() {
+    soundEnabled = !soundEnabled
+    setSoundEnabled(soundEnabled)
+    if (soundEnabled) playTap()
   }
 </script>
 
@@ -224,8 +242,9 @@
     {:else}
       <h3 class="form-title">新增記錄</h3>
       <div class="form-group">
-        <label class="form-label">開始日期</label>
+        <label class="form-label" for="start-date-input">開始日期</label>
         <input
+          id="start-date-input"
           type="date"
           class="form-input"
           bind:value={startDate}
@@ -233,8 +252,9 @@
         />
       </div>
       <div class="form-group">
-        <label class="form-label">結束日期</label>
+        <label class="form-label" for="end-date-input">結束日期</label>
         <input
+          id="end-date-input"
           type="date"
           class="form-input"
           bind:value={endDate}
@@ -246,6 +266,10 @@
         <button class="btn-save" onclick={handleSubmit} disabled={!startDate || !endDate}>儲存</button>
       </div>
     {/if}
+  </div>
+
+  <div class="card quick-guide">
+    <p class="simple-hint">操作建議：先記錄開始/結束日期，再補上每天流量與症狀，分析會更準確。</p>
   </div>
 
   <!-- Reminder settings -->
@@ -303,6 +327,12 @@
         <span class="setting-unit">天</span>
       </div>
     </div>
+    <div class="setting-item">
+      <span class="setting-label">操作音效</span>
+      <button class="lock-btn {soundEnabled ? 'primary' : ''}" onclick={toggleSound}>
+        {soundEnabled ? '開啟' : '關閉'}
+      </button>
+    </div>
   </div>
 
   <!-- Records list -->
@@ -324,7 +354,7 @@
               onclick={() => expandedId = expandedId === entry.id ? null : entry.id}
               title="詳細記錄"
             >📝</button>
-            <button class="delete-btn" onclick={() => handleDelete(entry.id)}>
+            <button class="delete-btn" aria-label="刪除紀錄" onclick={() => handleDelete(entry.id)}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
             </button>
           </div>
@@ -499,6 +529,11 @@
     border-radius: 14px;
     padding: 16px;
     box-shadow: var(--shadow);
+  }
+
+  .quick-guide {
+    background: linear-gradient(180deg, var(--bg-soft), var(--card-bg));
+    border: 1px solid var(--border);
   }
 
   .add-btn {

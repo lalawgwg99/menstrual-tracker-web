@@ -83,20 +83,21 @@
 
 <style>
   .reminder-card {
-    background: white;
+    background: var(--card-bg);
     border-radius: 16px;
     padding: 16px;
-    box-shadow: 0 2px 12px rgba(244, 63, 94, 0.08);
+    box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
     gap: 12px;
+    border: 1px solid var(--border);
   }
   .reminder-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
   }
-  .reminder-title { font-size: 15px; font-weight: 600; color: #333; }
+  .reminder-title { font-size: 15px; font-weight: 600; color: var(--text); }
   .perm-badge { font-size: 12px; padding: 3px 8px; border-radius: 12px; }
   .perm-badge.granted { background: #dcfce7; color: #166534; }
   .perm-badge.denied { background: #fee2e2; color: #991b1b; }
@@ -104,18 +105,19 @@
     font-size: 12px; padding: 5px 12px; border-radius: 20px;
     background: var(--period); color: white; border: none; cursor: pointer;
   }
-  .perm-hint { font-size: 12px; color: #f97316; }
+  .perm-hint { font-size: 12px; color: var(--fertile); }
   .reminder-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 0;
-    border-top: 1px solid #fce7f0;
+    border-top: 1px solid var(--border);
   }
   .reminder-info { display: flex; flex-direction: column; gap: 3px; }
-  .reminder-label { font-size: 14px; color: #444; }
-  .reminder-sub { font-size: 11px; color: #aaa; }
+  .reminder-label { font-size: 14px; color: var(--text); }
+  .reminder-sub { font-size: 11px; color: var(--text-muted); }
   .time-input {
-    font-size: 13px; border: 1px solid #e8d0d8; border-radius: 8px;
-    padding: 3px 6px; color: #555; margin-top: 4px;
+    font-size: 13px; border: 1px solid var(--border); border-radius: 8px;
+    padding: 3px 6px; color: var(--text); margin-top: 4px;
+    background: var(--bg);
     font-family: inherit;
   }
   .toggle-switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
