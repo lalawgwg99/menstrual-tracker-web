@@ -5,15 +5,24 @@
 }
 
 :root {
-  --bg: #fdf2f8;
-  --period: #f43f5e;
-  --ovulation: #a855f7;
-  --fertile: #fb923c;
-  --text: #333333;
-  --text-muted: #888888;
-  --border: #f3e8ee;
-  --card-bg: #ffffff;
-  --shadow: 0 2px 12px rgba(244, 63, 94, 0.08);
+  --bg: #F2F2F7;
+  --period: #FF3B30;
+  --ovulation: #5E5CE6;
+  --fertile: #FF9500;
+  --text: #000000;
+  --text-muted: #8E8E93;
+  --border: #E5E5EA;
+  --card-bg: #FFFFFF;
+  --shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card-bg: #1C1C1E;
+    --text: #FFFFFF;
+    --border: #38383A;
+  }
 }
 
 html {
@@ -21,12 +30,17 @@ html {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'SF Pro Text', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.num-rounded {
+  font-family: ui-rounded, "SF Pro Rounded", "SF Pro Text", -apple-system, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
 }
 
 #app {
@@ -50,7 +64,7 @@ input {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #f0c0cc;
+  background: var(--border);
   border-radius: 2px;
 }
 
@@ -59,19 +73,23 @@ input {
   align-items: center;
   gap: 4px;
   padding: 5px 10px;
-  border-radius: 20px;
-  border: 1.5px solid #e8d0d8;
-  background: white;
-  font-size: 12px;
-  color: #888;
+  border-radius: 8px; /* App style segmentation pill */
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  font-size: 13px;
+  color: var(--text-muted);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: opacity 0.15s, transform 0.1s;
   white-space: nowrap;
 }
+.tag-btn:active {
+  opacity: 0.7;
+  transform: scale(0.97);
+}
 .tag-btn.active {
-  background: var(--period);
-  border-color: var(--period);
-  color: white;
+  background: var(--text); /* iOS segmented active look */
+  border-color: var(--text);
+  color: var(--bg);
 }
 .tag-btn.mood-btn.active {
   background: var(--ovulation);

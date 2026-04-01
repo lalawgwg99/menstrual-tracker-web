@@ -40,15 +40,32 @@
   .navbar {
     position: fixed;
     bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
     width: 100%;
-    max-width: 430px;
     display: flex;
-    background: white;
-    border-top: 1px solid #f3e8ee;
-    box-shadow: 0 -2px 12px rgba(244, 63, 94, 0.08);
+    background: rgba(255, 255, 255, 0.85); /* Light transparent base */
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border-top: 0.5px solid var(--border);
     z-index: 100;
+    /* safe area padding to avoid bottom bar collision */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .navbar {
+      background: rgba(28, 28, 30, 0.85);
+    }
+  }
+
+  /* restrict width if app is centered and max-width is used (as in App.svelte) */
+  @media (min-width: 430px) {
+    .navbar {
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 430px;
+    }
   }
 
   .tab-btn {
@@ -57,21 +74,30 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 10px 0 14px;
+    gap: 4px; /* Slightly more gap for clarity */
+    padding: 10px 0 10px; /* Reduced to accommodate safe-area-inset in .navbar */
     background: none;
     border: none;
     cursor: pointer;
-    color: #bbb;
-    font-size: 11px;
-    transition: color 0.2s;
+    color: var(--text-muted);
+    font-size: 10px; /* Standard iOS bottom tab font size */
+    font-weight: 500;
+    transition: transform 0.1s, opacity 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tab-btn:active {
+    opacity: 0.6;
+    transform: scale(0.96);
   }
 
   .tab-btn.active {
-    color: var(--period);
+    color: var(--period); /* System red for active tab */
   }
 
-  .tab-btn:hover {
-    color: #f87171;
+  .tab-btn :global(svg) {
+    width: 24px;   /* Standard iOS icon size */
+    height: 24px;
+    stroke-width: 1.5; /* Lighter stroke for iOS minimal look */
   }
 </style>

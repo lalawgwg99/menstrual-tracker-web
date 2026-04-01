@@ -9,6 +9,11 @@ export interface DailyLog {
   mood?: MoodTag
   temperature?: number
   note?: string
+  cervicalMucus?: 'dry' | 'sticky' | 'creamy' | 'eggwhite'
+  ovulationTest?: 'negative' | 'positive'
+  sex?: boolean
+  weight?: number
+  medication?: string
 }
 
 export interface PeriodEntry {

@@ -3,11 +3,16 @@
   import { addDays } from '../lib/cycle.js'
   import type { FlowLevel, MoodTag, SymptomTag, DailyLog } from '../lib/types.js'
   import ReminderSettings from './ReminderSettings.svelte'
+  import { enableAppLock, disableAppLock, isWebAuthnSupported, isAppLockEnabled } from '../lib/webauthn.js'
 
   let showForm = $state(false)
   let startDate = $state('')
   let endDate = $state('')
   let expandedId = $state<string | null>(null)
+  let appLockSupported = $state(isWebAuthnSupported())
+  let appLockEnabled = $state(appLockSupported ? isAppLockEnabled() : false)
+  let appLockBusy = $state(false)
+  let appLockError = $state('')
 
   let defaultEndDate = $derived(
     startDate ? addDays(startDate, store.periodLength - 1) : ''
@@ -100,6 +105,13 @@
     { value: 'nausea', label: '噁心' }
   ]
 
+  const mucusOptions: { value: DailyLog['cervicalMucus']; label: string }[] = [
+    { value: 'dry', label: '乾燥' },
+    { value: 'sticky', label: '黏稠' },
+    { value: 'creamy', label: '乳狀' },
+    { value: 'eggwhite', label: '蛋清' }
+  ]
+
   const moodOptions: { value: MoodTag; emoji: string }[] = [
     { value: 'happy', emoji: '😊' },
     { value: 'calm', emoji: '😌' },
@@ -144,6 +156,61 @@
     const log = getLog(entryId, date)
     store.upsertDailyLog(entryId, { ...log, note })
   }
+
+  async function handleEnableLock() {
+    if (!appLockSupported || appLockBusy) return
+    appLockBusy = true
+    appLockError = ''
+    try {
+      const ok = await enableAppLock()
+      appLockEnabled = ok
+      if (!ok) appLockError = '啟用失敗，請重試'
+    } catch {
+      appLockError = '啟用失敗，請重試'
+    } finally {
+      appLockBusy = false
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('app-lock-changed'))
+      }
+    }
+  }
+
+  function handleDisableLock() {
+    disableAppLock()
+    appLockEnabled = false
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('app-lock-changed'))
+    }
+  }
+
+  function setMucus(entryId: string, date: string, value: DailyLog['cervicalMucus']) {
+    const log = getLog(entryId, date)
+    const nextVal = log.cervicalMucus === value ? undefined : value
+    store.upsertDailyLog(entryId, { ...log, cervicalMucus: nextVal })
+  }
+
+  function setOvulationTest(entryId: string, date: string, value: DailyLog['ovulationTest']) {
+    const log = getLog(entryId, date)
+    const nextVal = log.ovulationTest === value ? undefined : value
+    store.upsertDailyLog(entryId, { ...log, ovulationTest: nextVal })
+  }
+
+  function setSex(entryId: string, date: string, value: boolean) {
+    const log = getLog(entryId, date)
+    const nextVal = log.sex === value ? undefined : value
+    store.upsertDailyLog(entryId, { ...log, sex: nextVal })
+  }
+
+  function setWeight(entryId: string, date: string, weight: string) {
+    const log = getLog(entryId, date)
+    const val = parseFloat(weight)
+    store.upsertDailyLog(entryId, { ...log, weight: isNaN(val) ? undefined : val })
+  }
+
+  function setMedication(entryId: string, date: string, medication: string) {
+    const log = getLog(entryId, date)
+    store.upsertDailyLog(entryId, { ...log, medication })
+  }
 </script>
 
 <div class="log-panel">
@@ -183,6 +250,27 @@
 
   <!-- Reminder settings -->
   <ReminderSettings />
+
+  <!-- App lock -->
+  <div class="card">
+    <h3 class="section-title">隱私保護</h3>
+    <div class="setting-item">
+      <span class="setting-label">Face ID / Touch ID 解鎖</span>
+      {#if !appLockSupported}
+        <span class="setting-hint">此裝置不支援</span>
+      {:else if appLockEnabled}
+        <button class="lock-btn" onclick={handleDisableLock}>關閉</button>
+      {:else}
+        <button class="lock-btn primary" onclick={handleEnableLock} disabled={appLockBusy}>
+          {appLockBusy ? '啟用中…' : '啟用'}
+        </button>
+      {/if}
+    </div>
+    {#if appLockError}
+      <div class="lock-error">{appLockError}</div>
+    {/if}
+    <div class="lock-note">僅在本機加密保存，不會上傳雲端。</div>
+  </div>
 
   <!-- Settings card -->
   <div class="card">
@@ -228,8 +316,8 @@
           <div class="entry-item">
             <div class="entry-icon">🩸</div>
             <div class="entry-info">
-              <div class="entry-dates">{formatDateDisplay(entry.startDate)} — {formatDateDisplay(entry.endDate)}</div>
-              <div class="entry-duration">{getDuration(entry)} 天</div>
+              <div class="entry-dates num-rounded">{formatDateDisplay(entry.startDate)} — {formatDateDisplay(entry.endDate)}</div>
+              <div class="entry-duration num-rounded">{getDuration(entry)} 天</div>
             </div>
             <button
               class="log-btn"
@@ -246,7 +334,7 @@
               {#each getDatesInRange(entry.startDate, entry.endDate) as date}
                 {@const log = getLog(entry.id, date)}
                 <div class="daily-log-day">
-                  <div class="day-header">{formatDateDisplay(date)}</div>
+                  <div class="day-header num-rounded">{formatDateDisplay(date)}</div>
 
                   <!-- Flow -->
                   <div class="log-field">
@@ -305,6 +393,78 @@
                     </div>
                   </div>
 
+                  <!-- Ovulation Test -->
+                  <div class="log-field">
+                    <span class="log-field-label">排卵試紙</span>
+                    <div class="tag-group">
+                      <button
+                        class="tag-btn {log.ovulationTest === 'negative' ? 'active' : ''}"
+                        onclick={() => setOvulationTest(entry.id, date, 'negative')}
+                      >陰性</button>
+                      <button
+                        class="tag-btn {log.ovulationTest === 'positive' ? 'active' : ''}"
+                        onclick={() => setOvulationTest(entry.id, date, 'positive')}
+                      >陽性</button>
+                    </div>
+                  </div>
+
+                  <!-- Cervical Mucus -->
+                  <div class="log-field">
+                    <span class="log-field-label">宮頸黏液</span>
+                    <div class="tag-group">
+                      {#each mucusOptions as opt}
+                        <button
+                          class="tag-btn {(log.cervicalMucus ?? '') === opt.value ? 'active' : ''}"
+                          onclick={() => setMucus(entry.id, date, opt.value)}
+                        >{opt.label}</button>
+                      {/each}
+                    </div>
+                  </div>
+
+                  <!-- Sex -->
+                  <div class="log-field">
+                    <span class="log-field-label">性行為</span>
+                    <div class="tag-group">
+                      <button
+                        class="tag-btn {log.sex === true ? 'active' : ''}"
+                        onclick={() => setSex(entry.id, date, true)}
+                      >有</button>
+                      <button
+                        class="tag-btn {log.sex === false ? 'active' : ''}"
+                        onclick={() => setSex(entry.id, date, false)}
+                      >無</button>
+                    </div>
+                  </div>
+
+                  <!-- Weight -->
+                  <div class="log-field">
+                    <span class="log-field-label">體重</span>
+                    <div class="temp-input-group">
+                      <input
+                        type="number"
+                        class="temp-input"
+                        min="30"
+                        max="200"
+                        step="0.1"
+                        value={log.weight ?? ''}
+                        oninput={(e) => setWeight(entry.id, date, (e.target as HTMLInputElement).value)}
+                        placeholder="52.0"
+                      />
+                      <span class="temp-unit">kg</span>
+                    </div>
+                  </div>
+
+                  <!-- Medication -->
+                  <div class="log-field">
+                    <span class="log-field-label">用藥</span>
+                    <input
+                      class="note-input"
+                      value={log.medication ?? ''}
+                      oninput={(e) => setMedication(entry.id, date, (e.target as HTMLInputElement).value)}
+                      placeholder="藥名/劑量"
+                    />
+                  </div>
+
                   <!-- Note -->
                   <div class="log-field">
                     <span class="log-field-label">備注</span>
@@ -335,10 +495,10 @@
   }
 
   .card {
-    background: white;
-    border-radius: 16px;
+    background: var(--card-bg);
+    border-radius: 14px;
     padding: 16px;
-    box-shadow: 0 2px 12px rgba(244, 63, 94, 0.08);
+    box-shadow: var(--shadow);
   }
 
   .add-btn {
@@ -348,24 +508,26 @@
     justify-content: center;
     gap: 8px;
     padding: 14px;
-    background: linear-gradient(135deg, #f43f5e, #fb7185);
+    background: var(--period);
     color: white;
     border: none;
     border-radius: 12px;
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.15s;
+    transition: opacity 0.1s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .add-btn:hover {
-    opacity: 0.9;
+  .add-btn:active {
+    opacity: 0.7;
+    transform: scale(0.98);
   }
 
   .form-title {
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 600;
-    color: #333;
+    color: var(--text);
     margin-bottom: 16px;
   }
 
@@ -376,21 +538,23 @@
   .form-label {
     display: block;
     font-size: 13px;
-    color: #888;
+    font-weight: 500;
+    color: var(--text-muted);
     margin-bottom: 6px;
+    padding-left: 4px;
   }
 
   .form-input {
     width: 100%;
-    padding: 10px 12px;
-    border: 1.5px solid #f3e8ee;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
     border-radius: 10px;
-    font-size: 15px;
-    color: #333;
-    background: #fdf9fb;
+    font-size: 16px;
+    color: var(--text);
+    background: var(--bg);
     outline: none;
     box-sizing: border-box;
-    transition: border-color 0.15s;
+    -webkit-appearance: none;
   }
 
   .form-input:focus {
@@ -406,11 +570,12 @@
   .btn-cancel {
     flex: 1;
     padding: 12px;
-    background: #f5f5f5;
-    color: #888;
+    background: var(--bg);
+    color: var(--period);
     border: none;
     border-radius: 10px;
-    font-size: 15px;
+    font-size: 16px;
+    font-weight: 500;
     cursor: pointer;
   }
 
@@ -421,30 +586,35 @@
     color: white;
     border: none;
     border-radius: 10px;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: opacity 0.15s;
+  }
+
+  .btn-save:active, .btn-cancel:active {
+    opacity: 0.7;
   }
 
   .btn-save:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
   }
 
   .section-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #666;
-    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    padding-left: 8px;
   }
 
   .setting-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #fce7f0;
+    padding: 12px 8px;
+    border-bottom: 0.5px solid var(--border);
   }
 
   .setting-item:last-child {
@@ -452,8 +622,8 @@
   }
 
   .setting-label {
-    font-size: 14px;
-    color: #444;
+    font-size: 16px;
+    color: var(--text);
   }
 
   .setting-input-group {
@@ -465,12 +635,14 @@
   .setting-input {
     width: 60px;
     padding: 6px 10px;
-    border: 1.5px solid #f3e8ee;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 16px;
     text-align: center;
-    color: #333;
+    color: var(--text);
+    background: var(--bg);
     outline: none;
+    -webkit-appearance: none;
   }
 
   .setting-input:focus {
@@ -478,30 +650,71 @@
   }
 
   .setting-unit {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .setting-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .lock-btn {
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
     font-size: 13px;
-    color: #aaa;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 10px;
+  }
+
+  .lock-btn.primary {
+    background: var(--text);
+    color: var(--bg);
+    border-color: var(--text);
+  }
+
+  .lock-btn:disabled {
+    opacity: 0.6;
+  }
+
+  .lock-error {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #b91c1c;
+  }
+
+  .lock-note {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
   }
 
   .empty-text {
     text-align: center;
-    color: #ccc;
-    font-size: 13px;
+    color: var(--text-muted);
+    font-size: 14px;
     padding: 20px 0;
   }
 
   .entries-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    overflow: hidden;
   }
 
   .entry-item {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px;
-    background: #fdf9fb;
-    border-radius: 12px;
+    padding: 12px 16px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .entry-item:last-child {
+    border-bottom: none;
   }
 
   .entry-icon {
@@ -514,77 +727,63 @@
   }
 
   .entry-dates {
-    font-size: 14px;
-    color: #333;
+    font-size: 16px;
+    color: var(--text);
     font-weight: 500;
   }
 
   .entry-duration {
-    font-size: 12px;
-    color: #aaa;
+    font-size: 14px;
+    color: var(--text-muted);
     margin-top: 2px;
   }
 
-  .log-btn {
+  .log-btn, .delete-btn {
     background: none;
     border: none;
-    font-size: 16px;
     cursor: pointer;
-    padding: 6px;
-    border-radius: 8px;
-    transition: background 0.15s;
-    line-height: 1;
-  }
-
-  .log-btn:hover {
-    background: #fce7f0;
-  }
-
-  .delete-btn {
-    background: none;
-    border: none;
-    color: #ddd;
-    cursor: pointer;
-    padding: 6px;
+    padding: 8px;
     border-radius: 8px;
     display: flex;
     align-items: center;
-    transition: color 0.15s, background 0.15s;
+    color: var(--text-muted);
+    transition: opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .delete-btn:hover {
+  .log-btn:active, .delete-btn:active {
+    opacity: 0.5;
+  }
+  
+  .delete-btn {
     color: var(--period);
-    background: #fde8ee;
   }
 
   /* Daily log section */
   .daily-logs-section {
-    background: #fdf5f8;
+    background: var(--bg);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .daily-log-day {
+    background: var(--card-bg);
     border-radius: 12px;
-    padding: 12px;
-    margin-top: -4px;
-    margin-bottom: 4px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
 
-  .daily-log-day {
-    background: white;
-    border-radius: 10px;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    box-shadow: 0 1px 4px rgba(244, 63, 94, 0.06);
-  }
-
   .day-header {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     color: var(--period);
-    padding-bottom: 6px;
-    border-bottom: 1px solid #fce7f0;
+    padding-bottom: 8px;
+    border-bottom: 0.5px solid var(--border);
   }
 
   .log-field {
@@ -595,7 +794,7 @@
 
   .log-field-label {
     font-size: 12px;
-    color: #aaa;
+    color: var(--text-muted);
     font-weight: 500;
   }
 
@@ -613,13 +812,15 @@
 
   .temp-input {
     width: 80px;
-    padding: 5px 8px;
-    border: 1.5px solid #f3e8ee;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 14px;
-    color: #333;
+    font-size: 15px;
+    color: var(--text);
+    background: var(--bg);
     outline: none;
     font-family: inherit;
+    -webkit-appearance: none;
   }
 
   .temp-input:focus {
@@ -627,22 +828,23 @@
   }
 
   .temp-unit {
-    font-size: 13px;
-    color: #aaa;
+    font-size: 14px;
+    color: var(--text-muted);
   }
 
   .note-input {
     width: 100%;
-    padding: 7px 10px;
-    border: 1.5px solid #f3e8ee;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    font-size: 13px;
-    color: #333;
+    font-size: 15px;
+    color: var(--text);
     resize: none;
     outline: none;
     font-family: inherit;
-    background: #fdf9fb;
+    background: var(--bg);
     box-sizing: border-box;
+    -webkit-appearance: none;
   }
 
   .note-input:focus {
